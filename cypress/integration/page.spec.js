@@ -10,7 +10,7 @@ const page = {
   clearCompletedButton: () => cy.byDataCy('ClearCompletedButton'),
 
   visit: (url = '/') => {
-    cy.visit(`http://localhost:4000${url}`, {
+    cy.visit(url, {
       onBeforeLoad: win => win.localStorage.setItem('user', '{ "id": 1 }'),
     });
 
