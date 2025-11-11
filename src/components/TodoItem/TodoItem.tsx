@@ -1,100 +1,72 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
-import React, { useState, useRef, useEffect } from 'react';
+/* eslint-disable jsx-a11y/control-has-associated-label */
+import React from 'react';
 import cn from 'classnames';
 import { Todo } from '../../types/Todo';
+
+type EditControls = {
+  isEditing: boolean;
+  editTitle: string;
+  startEdit: () => void;
+  changeEditTitle: (value: string) => void;
+  submitEdit: () => void;
+  cancelEdit: () => void;
+};
 
 type Props = {
   todo: Todo;
   isBusy?: boolean;
-  onDelete?: (id: number) => Promise<void>;
-  isUpdating?: boolean;
-  onUpdate?: (id: number, data: Partial<Omit<Todo, 'id'>>) => Promise<void>;
+  onDelete?: (id: number) => void;
+  onToggle?: (id: number, newState: boolean) => void;
+  editControls: EditControls;
 };
 
 export const TodoItem: React.FC<Props> = ({
   todo,
   isBusy,
   onDelete,
-  isUpdating,
-  onUpdate,
+  onToggle,
+  editControls,
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [newTitle, setNewTitle] = useState(todo.title);
+  const {
+    isEditing,
+    editTitle,
+    startEdit,
+    changeEditTitle,
+    submitEdit,
+    cancelEdit,
+  } = editControls;
 
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isEditing) {
-      inputRef.current?.focus();
+  const handleKeyUp: React.KeyboardEventHandler<HTMLInputElement> = event => {
+    if (event.key === 'Escape') {
+      cancelEdit();
     }
-  }, [isEditing]);
-
-  const handleSave = async (event?: React.FormEvent) => {
-    event?.preventDefault();
-
-    const trimmedTitle = newTitle.trim();
-
-    if (trimmedTitle === todo.title) {
-      setIsEditing(false);
-
-      return;
-    }
-
-    try {
-      if (!trimmedTitle) {
-        await onDelete?.(todo.id);
-      } else {
-        await onUpdate?.(todo.id, { title: trimmedTitle });
-      }
-
-      setIsEditing(false);
-    } catch {}
   };
 
-  const handleKeyUp = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Escape') {
-      setIsEditing(false);
-      setNewTitle(todo.title);
-    }
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    submitEdit();
   };
 
   return (
-    <div
-      data-cy="Todo"
-      className={cn('todo', { completed: todo.completed, editing: isEditing })}
-    >
+    <div data-cy="Todo" className={cn('todo', { completed: todo.completed })}>
       <label className="todo__status-label">
         <input
           data-cy="TodoStatus"
           type="checkbox"
           className="todo__status"
           checked={todo.completed}
-          onChange={() => onUpdate?.(todo.id, { completed: !todo.completed })}
-          disabled={isBusy || isUpdating}
+          onChange={event => onToggle?.(todo.id, event.target.checked)}
+          disabled={isBusy || isEditing}
         />
       </label>
 
-      {isEditing ? (
-        <form onSubmit={handleSave}>
-          <input
-            ref={inputRef}
-            data-cy="TodoTitleField"
-            type="text"
-            className="todo__title-field"
-            placeholder="Empty todo will be deleted"
-            value={newTitle}
-            onChange={event => setNewTitle(event.target.value)}
-            onBlur={handleSave}
-            onKeyUp={handleKeyUp}
-            disabled={isUpdating}
-          />
-        </form>
-      ) : (
+      {!isEditing ? (
         <>
           <span
             data-cy="TodoTitle"
             className="todo__title"
-            onDoubleClick={() => setIsEditing(true)}
+            onDoubleClick={startEdit}
           >
             {todo.title}
           </span>
@@ -104,17 +76,31 @@ export const TodoItem: React.FC<Props> = ({
             className="todo__remove"
             data-cy="TodoDelete"
             onClick={() => onDelete?.(todo.id)}
-            disabled={isBusy || isUpdating}
+            disabled={isBusy}
           >
             ×
           </button>
         </>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <input
+            data-cy="TodoTitleField"
+            type="text"
+            className="todo__title-field"
+            placeholder="Empty todo will be deleted"
+            value={editTitle}
+            onChange={event => changeEditTitle(event.target.value)}
+            onBlur={submitEdit}
+            onKeyUp={handleKeyUp}
+            autoFocus
+            disabled={isBusy}
+          />
+        </form>
       )}
+
       <div
         data-cy="TodoLoader"
-        className={cn('modal', 'overlay', {
-          'is-active': isBusy || isUpdating,
-        })}
+        className={cn('modal', 'overlay', { 'is-active': isBusy })}
       >
         <div className="modal-background has-background-white-ter" />
         <div className="loader" />
